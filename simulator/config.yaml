@@ -1,0 +1,28 @@
+simulator:
+  events_per_second: 500
+  burst_mode: false
+
+kafka:
+  bootstrap: "kafka:9092"
+  topic_orders: "orders.events"
+  topic_dlq: "dlq.events"
+  topic_restaurants: "restaurants.master"
+
+chaos:
+  chaos_mode: true
+  duplicate_rate: 0.02        # 2%  — re-send same event_id
+  late_event_rate: 0.03       # 3%  — backdate event_ts by 1-15 min
+  out_of_order_rate: 0.02     # 2%  — shuffle lifecycle event sequence
+  schema_drift_rate: 0.005    # 0.5% — add/remove fields, bump schema_version
+  bad_value_rate: 0.01        # 1%  — null city, negative value, bad timestamp
+
+master_data:
+  num_restaurants: 500
+  num_riders: 300
+  num_customers: 5000
+
+load_profile:
+  lunch_peak_hours: [12, 13]       # IST
+  dinner_peak_hours: [19, 20, 21]  # IST
+  peak_multiplier: 2.5
+  night_multiplier: 0.1

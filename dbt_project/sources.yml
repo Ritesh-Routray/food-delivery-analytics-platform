@@ -1,0 +1,62 @@
+version: 2
+
+sources:
+  - name: silver
+    description: "Silver Delta Lake tables — validated, deduplicated events"
+    schema: silver
+    freshness:
+      warn_after: {count: 1, period: hour}
+      error_after: {count: 4, period: hour}
+    loaded_at_field: updated_at
+    tables:
+      - name: order_events
+        description: "All valid, deduplicated order lifecycle events"
+        columns:
+          - name: event_id
+            tests: [not_null, unique]
+          - name: order_id
+            tests: [not_null]
+          - name: event_type
+            tests:
+              - not_null
+              - accepted_values:
+                  values: [order_placed, order_confirmed, order_preparing,
+                           order_picked_up, order_delivered, order_cancelled, order_rejected]
+          - name: city
+            tests: [not_null]
+          - name: event_ts
+            tests: [not_null]
+
+      - name: order_state
+        description: "Latest state per order (one row per order_id)"
+        columns:
+          - name: order_id
+            tests: [not_null, unique]
+          - name: current_status
+            tests: [not_null]
+
+      - name: restaurant_master
+        description: "Restaurant master data (feeds SCD2 snapshot)"
+        columns:
+          - name: restaurant_id
+            tests: [not_null]
+
+  - name: gold
+    description: "Gold Delta Lake tables — streaming aggregates"
+    schema: gold
+    tables:
+      - name: city_minute_metrics
+        description: "Orders per minute by city (1-min tumbling window)"
+      - name: delivery_time_stats
+        description: "Delivery time avg + p95 per city (5-min sliding)"
+      - name: cancellation_rate
+        description: "Cancellation percentage per city (1-min tumbling)"
+      - name: rider_metrics
+        description: "Rider delivery productivity (15-min sliding)"
+
+  - name: pipeline
+    description: "Pipeline health and observability tables"
+    schema: metrics
+    tables:
+      - name: pipeline_metrics
+        description: "Batch-level metrics: rows in/out/quarantined, duration"

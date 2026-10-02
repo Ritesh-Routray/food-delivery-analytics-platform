@@ -1,0 +1,59 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.backends.legacy:build"
+
+[project]
+name = "food-delivery-analytics"
+version = "0.1.0"
+requires-python = ">=3.11"
+dependencies = [
+    "kafka-python-ng>=2.2.2",
+    "pydantic>=2.7",
+    "pyyaml>=6.0",
+    "faker>=25.0",
+    "python-dateutil>=2.9",
+    "structlog>=24.2",
+    "click>=8.1",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.2",
+    "pytest-cov>=5.0",
+    "pytest-mock>=3.14",
+    "ruff>=0.4",
+    "black>=24.4",
+    "mypy>=1.10",
+    "pre-commit>=3.7",
+]
+spark = [
+    "pyspark>=3.5.1",
+    "delta-spark>=3.2.0",
+]
+dbt = [
+    "dbt-core>=1.8",
+    "dbt-duckdb>=1.8",
+    "duckdb>=0.10",
+]
+quality = [
+    "great-expectations>=0.18",
+]
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+select = ["E", "F", "I", "N", "W", "UP"]
+ignore = ["E501"]
+
+[tool.black]
+line-length = 100
+target-version = ["py311"]
+
+[tool.mypy]
+python_version = "3.11"
+strict = true
+ignore_missing_imports = true
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "--cov=simulator --cov=streaming --cov-report=term-missing -v"

@@ -1,0 +1,53 @@
+name: food_delivery_analytics
+version: "1.0.0"
+config-version: 2
+
+profile: food_delivery_analytics
+
+model-paths: ["models"]
+analysis-paths: ["analyses"]
+test-paths: ["tests"]
+seed-paths: ["seeds"]
+macro-paths: ["macros"]
+snapshot-paths: ["snapshots"]
+
+target-path: "target"
+clean-targets:
+  - "target"
+  - "dbt_packages"
+
+models:
+  food_delivery_analytics:
+    staging:
+      +materialized: view
+      +schema: staging
+    intermediate:
+      +materialized: ephemeral
+    marts:
+      +materialized: table
+      facts:
+        +materialized: incremental
+      dimensions:
+        +materialized: table
+
+snapshots:
+  food_delivery_analytics:
+    +target_schema: snapshots
+    +strategy: check
+    +unique_key: restaurant_id
+    +check_cols:
+      - name
+      - cuisine
+      - commission_tier
+      - is_active
+
+seeds:
+  food_delivery_analytics:
+    +schema: seeds
+
+vars:
+  # Lookback window for incremental models (days)
+  incremental_lookback_days: 3
+  # Source freshness thresholds
+  freshness_warn_after_hours: 1
+  freshness_error_after_hours: 4

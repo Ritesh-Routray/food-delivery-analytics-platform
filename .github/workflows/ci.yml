@@ -1,0 +1,149 @@
+name: CI
+
+on:
+  push:
+    branches: ["main", "develop"]
+  pull_request:
+    branches: ["main"]
+
+env:
+  PYTHON_VERSION: "3.11"
+
+jobs:
+  # ── 1. Lint ──────────────────────────────────────────────────────────────────
+  lint:
+    name: Lint (ruff + black)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Install lint tools
+        run: pip install ruff black
+
+      - name: Run ruff
+        run: ruff check .
+
+      - name: Run black check
+        run: black --check .
+
+  # ── 2. Unit tests ────────────────────────────────────────────────────────────
+  unit-tests:
+    name: Unit Tests (pytest)
+    runs-on: ubuntu-latest
+    needs: lint
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Install dependencies
+        run: |
+          pip install -e ".[dev]"
+          pip install kafka-python-ng pydantic pyyaml faker structlog
+
+      - name: Run unit tests (no Spark/Kafka required)
+        run: |
+          pytest tests/ -v -m "not integration" \
+            --cov=simulator \
+            --cov-report=xml \
+            --cov-report=term-missing
+
+      - name: Upload coverage
+        uses: codecov/codecov-action@v4
+        with:
+          file: ./coverage.xml
+          fail_ci_if_error: false
+
+  # ── 3. dbt compile + test ────────────────────────────────────────────────────
+  dbt-check:
+    name: dbt Compile + Test (DuckDB)
+    runs-on: ubuntu-latest
+    needs: lint
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Install dbt + DuckDB
+        run: pip install dbt-core dbt-duckdb dbt-utils
+
+      - name: dbt debug (check connection)
+        working-directory: dbt_project
+        run: dbt debug --profiles-dir . --target ci
+
+      - name: dbt deps (install packages)
+        working-directory: dbt_project
+        run: dbt deps
+
+      - name: dbt seed (load test data)
+        working-directory: dbt_project
+        run: dbt seed --profiles-dir . --target ci
+
+      - name: dbt compile (validate SQL)
+        working-directory: dbt_project
+        run: dbt compile --profiles-dir . --target ci
+
+      - name: dbt test (run all tests on seed data)
+        working-directory: dbt_project
+        run: dbt test --profiles-dir . --target ci --select "seeds"
+
+  # ── 4. Docker build ──────────────────────────────────────────────────────────
+  docker-build:
+    name: Docker Build
+    runs-on: ubuntu-latest
+    needs: lint
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build simulator image
+        run: |
+          docker build -t food-delivery-simulator:ci ./simulator
+
+      - name: Verify simulator image starts
+        run: |
+          docker run --rm --entrypoint python food-delivery-simulator:ci \
+            -c "from chaos import ChaosConfig; print('✓ Simulator imports OK')"
+
+  # ── 5. Integration smoke test (optional, on main only) ───────────────────────
+  integration-smoke:
+    name: Integration Smoke Test
+    runs-on: ubuntu-latest
+    needs: [unit-tests, dbt-check, docker-build]
+    if: github.ref == 'refs/heads/main'
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Start Kafka + MinIO
+        run: |
+          docker compose up -d kafka minio kafka-init minio-init
+          echo "Waiting for Kafka..."
+          sleep 30
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Install dependencies
+        run: pip install kafka-python-ng pydantic pyyaml faker structlog
+
+      - name: Run integration tests
+        run: |
+          pytest tests/ -v -m "integration" --timeout=120
+        env:
+          KAFKA_BOOTSTRAP: localhost:9092
+
+      - name: Tear down
+        if: always()
+        run: docker compose down -v

@@ -1,0 +1,26 @@
+food_delivery_analytics:
+  target: dev
+  outputs:
+    dev:
+      type: duckdb
+      path: /tmp/food_delivery_dev.duckdb
+      # DuckDB reads Delta/Parquet from MinIO paths via httpfs extension
+      extensions:
+        - httpfs
+        - parquet
+        - delta
+      settings:
+        s3_endpoint: "localhost:9000"
+        s3_access_key_id: "minioadmin"
+        s3_secret_access_key: "minioadmin"
+        s3_use_ssl: false
+        s3_url_style: path
+      threads: 4
+      schema: main
+
+    ci:
+      # Used in GitHub Actions — runs against seed data only
+      type: duckdb
+      path: /tmp/food_delivery_ci.duckdb
+      threads: 2
+      schema: main

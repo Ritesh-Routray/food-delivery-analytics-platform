@@ -1,0 +1,68 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+.Python
+*.egg-info/
+dist/
+build/
+.eggs/
+.venv/
+venv/
+env/
+
+# Secrets & environment
+.env
+*.secret
+*.key
+
+# Spark / Delta
+spark-warehouse/
+derby.log
+metastore_db/
+*.parquet
+*.delta
+
+# dbt
+dbt_project/target/
+dbt_project/logs/
+dbt_project/.user.yml
+
+# Airflow
+airflow/logs/
+airflow/plugins/__pycache__/
+
+# MinIO / data volumes
+minio-data/
+postgres-data/
+kafka-data/
+
+# Docker
+.dockerignore
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+.DS_Store
+Thumbs.db
+
+# Test coverage
+.coverage
+htmlcov/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Docs build
+docs/site/
+
+# Notebooks
+*.ipynb_checkpoints
+
+# Temp extraction files
+doc_content.txt
+doc_indexed.txt
+doc_out.txt
